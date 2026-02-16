@@ -20,7 +20,6 @@ public class AuthService {
 
     public void register(RegisterRequestDTO requestDTO) {
 
-
         if (userRepository.existsByEmail(requestDTO.getEmail())) {
             throw new RuntimeException("Email already registered");
         }

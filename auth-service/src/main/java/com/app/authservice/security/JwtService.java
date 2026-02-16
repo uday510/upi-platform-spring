@@ -1,6 +1,8 @@
 package com.app.authservice.security;
 
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
@@ -9,17 +11,22 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    private static final long EXPIRATION = 1000 * 60 * 60 * 24;
+    @Value("${jwt.secret}")
+    private String secret;
 
-    private final Key key = Jwts.SIG.HS256.key().build();
+    @Value("${jwt.expiration}")
+    private long expiration;
+
 
     public String generateJWT(String email, String role) {
+
+        Key key = Keys.hmacShaKeyFor(secret.getBytes());
 
         return Jwts.builder()
                 .subject(email)
                 .claim("role", role)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + EXPIRATION))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(key)
                 .compact();
 
