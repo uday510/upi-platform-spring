@@ -18,19 +18,19 @@ spring:
         - id: auth-service
           uri: lb://AUTH-SERVICE
           predicates:
-            - Path=/auth/**
+            - Path=/api/*/auth/**
 
         # UPI Service
         - id: upi-service
           uri: lb://UPI-SERVICE
           predicates:
-            - Path=/upi/**
+            - Path=/api/*/upi/**
 
         # Notification Service
         - id: notification-service
           uri: lb://NOTIFICATION-SERVICE
           predicates:
-            - Path=/notify/**
+            - Path=/api/*/notify/**
 
 
       default-filters:
@@ -57,4 +57,4 @@ internal:
 
 gateway:
   security:
-    allowed-paths: ${ALLOWED_PATHS:/auth/login,/auth/register,/notify/ping}
+    allowed-paths: ${ALLOWED_PATHS:/api/v1/auth/login,/api/v1/auth/register,/api/v1/notify/ping}

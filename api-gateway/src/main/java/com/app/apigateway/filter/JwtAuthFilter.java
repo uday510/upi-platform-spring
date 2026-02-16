@@ -3,7 +3,6 @@ package com.app.apigateway.filter;
 import com.app.apigateway.config.GatewaySecurityProperties;
 import com.app.apigateway.security.JwtUtil;
 import io.jsonwebtoken.Claims;
-import io.lettuce.core.ScriptOutputType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -49,6 +48,8 @@ public class JwtAuthFilter implements GlobalFilter {
                         )
                         .build();
 
+        System.out.println(path);
+
         if (props.getAllowedPaths().contains(path)) {
             return chain.filter(mutatedExchange);
         }
@@ -79,6 +80,8 @@ public class JwtAuthFilter implements GlobalFilter {
                                             .build()
                             )
                             .build();
+
+            System.out.println("Authorized " + claims.getSubject());
 
             return chain.filter(securedExchange);
 

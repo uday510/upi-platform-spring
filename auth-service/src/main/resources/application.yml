@@ -23,6 +23,8 @@ spring:
     init:
 #      mode: always
       mode: never
+      schema-locations: classpath:schema.sql
+      continue-on-error: false
 
 eureka:
   client:

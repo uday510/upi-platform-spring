@@ -6,15 +6,15 @@ spring:
     name: upi-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/upi_service_db
+    url: jdbc:postgresql://localhost:5432/upi_db
     username: upi_user
     password: upi_password
     driver-class-name: org.postgresql.Driver
 
   sql:
     init:
-#      mode: always
       mode: never
+#      mode: never
       schema-locations: classpath:schema.sql
       continue-on-error: false
 
