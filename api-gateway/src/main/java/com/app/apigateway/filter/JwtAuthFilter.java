@@ -13,6 +13,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 
+
 @Component
 public class JwtAuthFilter implements GlobalFilter {
 
@@ -96,4 +97,5 @@ public class JwtAuthFilter implements GlobalFilter {
 
         return exchange.getResponse().setComplete();
     }
+
 }

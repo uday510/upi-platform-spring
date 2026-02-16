@@ -20,6 +20,9 @@ import java.util.UUID;
                         name = "uk_account_upi",
                         columnNames = "upi_id"
                 )
+        },
+        indexes = {
+                @Index(name = "idx_accounts_user_id", columnList = "user_id")
         }
 )
 @Check(constraints = "balance >= 0")
@@ -27,10 +30,12 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Account {
 
-
     @Id
     @Column(nullable = false, updatable = false)
     private UUID id;
+
+    @Column(name = "user_id", nullable = false, updatable = false)
+    private UUID userId; // Links to the User identity from JWT
 
     @Column(
             name = "upi_id",
@@ -41,83 +46,65 @@ public class Account {
     )
     private String upiId;
 
-
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal balance;
 
     @Version
-    private Long version;
-
+    private Long version; // Optimistic locking for concurrency safety
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    public static Account create(String upiId, BigDecimal initialBalance) {
+    public static Account create(UUID userId, String upiId, BigDecimal initialBalance) {
 
         if (upiId == null || upiId.isBlank()) {
             throw new IllegalArgumentException("UPI ID is required");
         }
 
-        if (initialBalance == null) {
-            initialBalance = BigDecimal.ZERO;
-        }
+        BigDecimal balance = (initialBalance == null) ? BigDecimal.ZERO : initialBalance;
 
-        if (initialBalance.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException(
-                    "Initial balance cannot be negative"
-            );
+        if (balance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Initial balance cannot be negative");
         }
 
         Account account = new Account();
         account.id = UUID.randomUUID();
+        account.userId = userId;
         account.upiId = upiId.trim().toLowerCase();
-        account.balance = initialBalance;
+        account.balance = balance;
 
         return account;
     }
 
-
     public void debit(BigDecimal amount) {
-
         validateAmount(amount);
 
         if (this.balance.compareTo(amount) < 0) {
-            throw new IllegalStateException("Insufficient balance");
+            throw new IllegalStateException("Insufficient balance for UPI ID: " + this.upiId);
         }
 
         this.balance = this.balance.subtract(amount);
     }
 
-
     public void credit(BigDecimal amount) {
-
         validateAmount(amount);
-
         this.balance = this.balance.add(amount);
     }
 
-
     private void validateAmount(BigDecimal amount) {
-
         if (amount == null) {
             throw new IllegalArgumentException("Amount cannot be null");
         }
-
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
         }
     }
 
-
-
     @Override
     public boolean equals(Object o) {
-
         if (this == o) return true;
-
         if (!(o instanceof Account other)) return false;
-
         return id != null && id.equals(other.id);
     }
 

@@ -18,7 +18,6 @@ public class TransferController {
 
     private final TransferService transferService;
 
-
     @PostMapping
     public ResponseEntity<TransferResponse> transfer(
             @RequestHeader("X-User") String senderUpi,
@@ -34,7 +33,7 @@ public class TransferController {
 
         TransferResponse response = TransferResponse.builder()
                 .transactionId(txId)
-                .status("SUCCESS")
+                .status(HttpStatus.OK.getReasonPhrase())
                 .message("Transfer completed successfully")
                 .build();
 

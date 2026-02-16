@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS accounts (
 
     id UUID PRIMARY KEY,
 
+    user_id UUID NOT NULL,
+
     upi_id VARCHAR(100) NOT NULL UNIQUE,
 
     balance NUMERIC(19,4) NOT NULL DEFAULT 0
@@ -14,6 +16,9 @@ CREATE TABLE IF NOT EXISTS accounts (
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_accounts_user_id
+    ON accounts(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_accounts_upi
     ON accounts(upi_id);
@@ -82,7 +87,6 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
         FOREIGN KEY (transaction_id)
         REFERENCES transactions(id),
 
-    -- Prevent duplicate debit/credit per transaction
     CONSTRAINT uq_ledger_tx_type
         UNIQUE (transaction_id, type)
 );

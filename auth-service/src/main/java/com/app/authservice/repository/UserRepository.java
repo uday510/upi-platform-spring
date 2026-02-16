@@ -1,6 +1,6 @@
 package com.app.authservice.repository;
 
-import com.app.authservice.model.User;
+import com.app.authservice.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
