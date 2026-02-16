@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  cloud:
+    gateway:
+      routes:
+
+        # Auth Service
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/**
+
+        # UPI Service
+        - id: upi-service
+          uri: lb://UPI-SERVICE
+          predicates:
+            - Path=/upi/**
+
+        # Notification Service
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/notify/**
+
+
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 10
+            redis-rate-limiter.burstCapacity: 20
+            key-resolver: "#{@userKeyResolver}"
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+
+jwt:
+  secret: 9f82d7a1b3c4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9
+
+
+internal:
+  secret: ${GATEWAY_SECRET:gateway-secret-123}
+
+
+gateway:
+  security:
+    allowed-paths: ${ALLOWED_PATHS:/auth/login,/auth/register,/notify/ping}
