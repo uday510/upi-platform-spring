@@ -1,6 +1,5 @@
 package com.app.authservice.model;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,12 +22,13 @@ public class User {
 
     @Id
     @GeneratedValue
+    @Column(name = "id")
     private UUID id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String password;
 
     @Column(nullable = false, length = 20)
@@ -38,9 +38,7 @@ public class User {
             name = "created_at",
             nullable = false,
             updatable = false,
-            insertable = false,
-            columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            insertable = false
     )
     private LocalDateTime createdAt;
-
 }

@@ -2,6 +2,11 @@
 **/target/
 **/.mvn/wrapper/maven-wrapper.jar
 
+.mvn/wrapper/maven-wrapper.properties
+.mvn/wrapper/maven-wrapper.jar
+mvnw
+mvnw.cmd
+
 # IntelliJ
 .idea/
 *.iml
