@@ -26,4 +26,5 @@ public class AccountController {
     ) {
         return accountService.getAccount(upiId);
     }
+
 }
