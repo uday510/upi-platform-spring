@@ -20,7 +20,7 @@ public class TransferController {
 
     @PostMapping
     public ResponseEntity<TransferResponse> transfer(
-            @RequestHeader("X-User") String senderUpi,
+            @RequestHeader("X-User-Id") UUID userId,
             @RequestHeader(value = "X-Role", required = false) String role,
             @Valid @RequestBody TransferRequest request
     ) {
@@ -29,7 +29,7 @@ public class TransferController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        UUID txId = transferService.transfer(request, senderUpi);
+        UUID txId = transferService.transfer(request, userId);
 
         TransferResponse response = TransferResponse.builder()
                 .transactionId(txId)

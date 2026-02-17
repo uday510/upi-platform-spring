@@ -27,13 +27,12 @@ public class TransferService {
     private final LedgerRepository ledgerRepository;
 
     @Transactional
-    public UUID transfer(TransferRequest request, String senderUpi) {
+    public UUID transfer(TransferRequest request, UUID userId) {
         log.info("Initiating transfer request. From: {}, To: {}, Amount: {}, Key: {}",
-                senderUpi, request.getToUpi(), request.getAmount(), request.getIdempotencyKey());
+                request.getFromUpi(), request.getToUpi(), request.getAmount(), request.getIdempotencyKey());
 
-        validateRequest(request, senderUpi);
+        validateRequest(request, request.getFromUpi());
 
-        // 1. Idempotency Check (Pre-emptive)
         var existingTx = transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
         if (existingTx.isPresent()) {
             log.warn("Duplicate transaction detected for key: {}. Returning existing ID: {}",
@@ -41,12 +40,17 @@ public class TransferService {
             return existingTx.get().getId();
         }
 
-        // 2. Fetch Accounts
-        Account fromAcc = accountRepository.findByUpiId(senderUpi)
+        Account fromAcc = accountRepository.findByUpiId(request.getFromUpi())
                 .orElseThrow(() -> {
-                    log.error("Transfer failed: Sender {} not found", senderUpi);
+                    log.error("Transfer failed: Sender {} not found", request.getFromUpi());
                     return new TransferException("Sender not found");
                 });
+
+        if (!userId.equals(fromAcc.getUserId())) {
+            log.error("Unauthorized transfer attempt: User {} tried to access account of User {}",
+                    userId, fromAcc.getUserId());
+            throw new TransferException("Unauthorized access to account");
+        }
 
         Account toAcc = accountRepository.findByUpiId(request.getToUpi())
                 .orElseThrow(() -> {
@@ -55,7 +59,7 @@ public class TransferService {
                 });
 
         if (fromAcc.equals(toAcc)) {
-            log.error("Transfer failed: Attempted self-transfer for UPI: {}", senderUpi);
+            log.error("Transfer failed: Attempted self-transfer for UPI: {}", request.getFromUpi());
             throw new TransferException("Cannot transfer to self");
         }
 
@@ -69,7 +73,6 @@ public class TransferService {
         Account from = first.equals(fromAcc) ? first : second;
         Account to = first.equals(toAcc) ? first : second;
 
-        // 4. Execute Balances
         log.debug("Updating balances. From Account: {}, To Account: {}", from.getId(), to.getId());
         from.debit(request.getAmount());
         to.credit(request.getAmount());
@@ -81,7 +84,6 @@ public class TransferService {
                 request.getIdempotencyKey()
         );
 
-        // 5. Save Transaction with Race-Condition Handling
         try {
             transactionRepository.save(tx);
         } catch (DataIntegrityViolationException ex) {
@@ -92,7 +94,6 @@ public class TransferService {
                     .orElseThrow(() -> new TransferException("Concurrent transfer conflict"));
         }
 
-        // 6. Persist State and Ledger
         accountRepository.saveAll(List.of(from, to));
 
         ledgerRepository.save(LedgerEntry.create(from.getId(), tx.getId(), EntryType.DEBIT, request.getAmount()));

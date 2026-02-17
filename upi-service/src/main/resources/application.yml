@@ -13,8 +13,8 @@ spring:
 
   sql:
     init:
+#      mode: always
       mode: never
-#      mode: never
       schema-locations: classpath:schema.sql
       continue-on-error: false
 

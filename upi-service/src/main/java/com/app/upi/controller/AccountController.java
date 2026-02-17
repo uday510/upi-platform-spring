@@ -36,7 +36,7 @@ public class AccountController {
     @GetMapping("/{upiId:.+}")
     public ResponseEntity<AccountResponse> getAccount(
             @PathVariable String upiId,
-            @RequestHeader("X-User") String authenticatedUser
+            @RequestHeader("X-User-Id") String authenticatedUser
     ) {
         log.info("User {} requesting account for {}", authenticatedUser, upiId);
 

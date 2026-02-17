@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 @Data
 public class TransferRequest {
 
+    private String fromUpi;
     private String toUpi;
     private BigDecimal amount;
 
