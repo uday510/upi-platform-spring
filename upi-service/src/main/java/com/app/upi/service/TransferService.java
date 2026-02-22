@@ -36,7 +36,6 @@ public class TransferService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final LedgerRepository ledgerRepository;
-    private final TransferEventProducer transferEventProducer;
     private final ObjectMapper objectMapper;
     private final OutboxRepository outboxRepository;
 

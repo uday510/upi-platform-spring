@@ -1,7 +1,9 @@
 package com.app.upi.service;
 
 import com.app.upi.entity.OutboxEvent;
+import com.app.upi.event.TransferCompletedEvent;
 import com.app.upi.repository.OutboxRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -18,9 +20,13 @@ import java.util.List;
 public class OutboxPublisher {
 
     private final OutboxRepository repo;
-    private final KafkaTemplate<String, String> kafka;
+    private final KafkaTemplate<String, Object> kafka;
+    private final ObjectMapper objectMapper;
 
     private static final int MAX_RETRIES = 5;
+
+    private static final String TOPIC = "transfer.completed";
+    private static final String DLQ_TOPIC = "transfer.completed.dlq";
 
     @Scheduled(fixedDelay = 5000)
     @Transactional
@@ -39,12 +45,17 @@ public class OutboxPublisher {
 
             try {
 
-                // BLOCK until Kafka confirms send
+                TransferCompletedEvent evt =
+                        objectMapper.readValue(
+                                event.getPayload(),
+                                TransferCompletedEvent.class
+                        );
+
                 kafka.send(
-                        "transfer.completed",
+                        TOPIC,
                         event.getAggregateId().toString(),
-                        event.getPayload()
-                ).get();
+                        evt
+                );
 
                 event.markSent();
 
@@ -69,11 +80,17 @@ public class OutboxPublisher {
 
         try {
 
+            TransferCompletedEvent evt =
+                    objectMapper.readValue(
+                            event.getPayload(),
+                            TransferCompletedEvent.class
+                    );
+
             kafka.send(
-                    "transfer.completed.dlq",
+                    DLQ_TOPIC,
                     event.getAggregateId().toString(),
-                    event.getPayload()
-            ).get();
+                    evt
+            );
 
             log.warn("Moved to DLQ: {}", event.getId());
 

@@ -1,10 +1,10 @@
-package com.app.upiservicespring;
+package com.app.notificationservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class UpiServiceSpringApplicationTests {
+class NotificationServiceTests {
 
     @Test
     void contextLoads() {
