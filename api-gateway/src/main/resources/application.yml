@@ -19,18 +19,26 @@ spring:
           uri: lb://AUTH-SERVICE
           predicates:
             - Path=/api/*/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: authCB
+                fallbackUri: forward:/fallback/auth
 
         # UPI Service
         - id: upi-service
           uri: lb://UPI-SERVICE
           predicates:
             - Path=/api/*/upi/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: upiCB
+                fallbackUri: forward:/fallback/upi
 
         # Notification Service
-        - id: notification-service
-          uri: lb://NOTIFICATION-SERVICE
-          predicates:
-            - Path=/api/*/notify/**
+#        - id: notification-service
+#          uri: lb://NOTIFICATION-SERVICE
 
 
       default-filters:

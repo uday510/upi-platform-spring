@@ -1,6 +1,9 @@
 package com.app.notificationservice.service;
 
+import com.app.notificationservice.client.AuthClient;
+import com.app.notificationservice.client.AuthServiceClient;
 import com.app.notificationservice.dto.TransferCompletedEvent;
+import com.app.notificationservice.dto.UserDto;
 import com.app.notificationservice.entity.Notification;
 import com.app.notificationservice.entity.NotificationLog;
 import com.app.notificationservice.repository.NotificationLogRepository;
@@ -24,6 +27,7 @@ public class TransferCompletedConsumer {
     private final NotificationLogRepository notificationLogRepository;
     private final EmailService emailService;
     private final ObjectMapper mapper;
+    private final AuthServiceClient authServiceClient;
 
     @KafkaListener(
             topics = "transfer.completed",
@@ -48,6 +52,8 @@ public class TransferCompletedConsumer {
                 return;
             }
 
+            UserDto user = authServiceClient.getUser(event.getUserId());
+
             notification =
                     Notification.builder()
                             .userId(event.getUserId())
@@ -69,7 +75,7 @@ public class TransferCompletedConsumer {
                             .build()
             );
 
-            emailService.send(event);
+            emailService.send(user.getEmail(), event);
 
             notification.setStatus("SENT");
             notification.setSentAt(Instant.now());

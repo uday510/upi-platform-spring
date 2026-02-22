@@ -26,9 +26,12 @@ public class InternalAuthFilter implements Filter {
         HttpServletResponse res =
                 (HttpServletResponse) response;
 
-        String key = req.getHeader("X-GATEWAY-KEY");
+        String gatewayKey = req.getHeader("X-GATEWAY-KEY");
+        String internalKey = req.getHeader("X-INTERNAL-KEY");
 
-        if (internalSecret.equals(key)) {
+        if (internalSecret.equals(gatewayKey)
+                || internalSecret.equals(internalKey)) {
+
             chain.doFilter(request, response);
             return;
         }

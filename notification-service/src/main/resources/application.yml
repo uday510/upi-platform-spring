@@ -1,6 +1,9 @@
 server:
   port: 8082
 
+internal:
+    secret: gateway-secret-123
+
 spring:
   application:
     name: notification-service
@@ -40,3 +43,18 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      authServiceCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        minimumNumberOfCalls: 5
+
+  retry:
+    instances:
+      authServiceRetry:
+        maxAttempts: 3
+        waitDuration: 2s

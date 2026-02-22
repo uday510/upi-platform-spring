@@ -8,20 +8,23 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EmailService {
 
-    public void send(TransferCompletedEvent event) {
+    public void send(String email, TransferCompletedEvent event) {
 
-        // Replace later with SMTP / SES
+        // TODO: Replace with SMTP / SES / SendGrid later
 
-        log.info("""
-            Sending email:
-            User: {}
-            Amount: {}
-            TxId: {}
-            """,
-                event.getUserId(),
+        String message = String.format("""
+                -------------------------
+                To      : %s
+                Amount  : %s
+                TxId    : %s
+                Status  : SUCCESS
+                -------------------------
+                """,
+                email,
                 event.getAmount(),
                 event.getTransactionId()
         );
 
+        log.info(message);
     }
 }
