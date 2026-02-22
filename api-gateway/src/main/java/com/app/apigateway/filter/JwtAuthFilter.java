@@ -1,16 +1,22 @@
 package com.app.apigateway.filter;
 
 import com.app.apigateway.config.GatewaySecurityProperties;
+import com.app.apigateway.exception.ErrorResponse;
 import com.app.apigateway.security.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
+import org.springframework.core.annotation.Order;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import java.time.LocalDateTime;
 
 
 @Component
@@ -58,10 +64,8 @@ public class JwtAuthFilter implements GlobalFilter {
                 .getHeaders()
                 .getFirst(HttpHeaders.AUTHORIZATION);
 
-        if (authHeader == null ||
-                !authHeader.startsWith("Bearer ")) {
-
-            return unauthorized(mutatedExchange);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return Mono.error(new RuntimeException("Missing or invalid Authorization header"));
         }
 
         String token = authHeader.substring(7);
@@ -86,15 +90,8 @@ public class JwtAuthFilter implements GlobalFilter {
             return chain.filter(securedExchange);
 
         } catch (Exception e) {
-            return unauthorized(mutatedExchange);
+            return Mono.error(new RuntimeException("Unauthorized: Invalid or missing token"));
         }
-    }
-
-    private Mono<Void> unauthorized(ServerWebExchange exchange) {
-        exchange.getResponse()
-                .setStatusCode(HttpStatus.UNAUTHORIZED);
-
-        return exchange.getResponse().setComplete();
     }
 
 }

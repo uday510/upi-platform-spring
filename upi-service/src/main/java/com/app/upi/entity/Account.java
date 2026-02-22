@@ -19,6 +19,10 @@ import java.util.UUID;
                 @UniqueConstraint(
                         name = "uk_account_upi",
                         columnNames = "upi_id"
+                ),
+                @UniqueConstraint(
+                        name = "uk_account_user",
+                        columnNames = "user_id"
                 )
         },
         indexes = {

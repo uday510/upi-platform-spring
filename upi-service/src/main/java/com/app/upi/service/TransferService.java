@@ -12,6 +12,7 @@ import com.app.upi.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -27,54 +28,95 @@ public class TransferService {
     private final LedgerRepository ledgerRepository;
 
     @Transactional
-    public UUID transfer(TransferRequest request, UUID userId) {
-        log.info("Initiating transfer request. From: {}, To: {}, Amount: {}, Key: {}",
-                request.getFromUpi(), request.getToUpi(), request.getAmount(), request.getIdempotencyKey());
+    public Transaction transferAndGet(TransferRequest request, UUID userId) {
+
+        log.info("Transfer request | from={} to={} amount={} key={}",
+                request.getFromUpi(),
+                request.getToUpi(),
+                request.getAmount(),
+                request.getIdempotencyKey());
+
 
         validateRequest(request, request.getFromUpi());
 
-        var existingTx = transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
+        // 1 Idempotency
+        var existingTx =
+                transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
+
         if (existingTx.isPresent()) {
+
             log.warn("Duplicate transaction detected for key: {}. Returning existing ID: {}",
                     request.getIdempotencyKey(), existingTx.get().getId());
-            return existingTx.get().getId();
+
+            return existingTx.get();
         }
 
-        Account fromAcc = accountRepository.findByUpiId(request.getFromUpi())
-                .orElseThrow(() -> {
-                    log.error("Transfer failed: Sender {} not found", request.getFromUpi());
-                    return new TransferException("Sender not found");
-                });
+        // 2 Sender
+        Account fromAcc = accountRepository
+                .findByUpiId(request.getFromUpi())
+                .orElseThrow(() ->
+                        new TransferException("Sender account not found",
+                                HttpStatus.NOT_FOUND)
+                );
 
         if (!userId.equals(fromAcc.getUserId())) {
-            log.error("Unauthorized transfer attempt: User {} tried to access account of User {}",
-                    userId, fromAcc.getUserId());
-            throw new TransferException("Unauthorized access to account");
+            throw new TransferException(
+                    "Unauthorized account access",
+                    HttpStatus.FORBIDDEN
+            );
         }
 
-        Account toAcc = accountRepository.findByUpiId(request.getToUpi())
-                .orElseThrow(() -> {
-                    log.error("Transfer failed: Receiver {} not found", request.getToUpi());
-                    return new TransferException("Receiver not found");
-                });
+        // 3 Receiver
+        Account toAcc = accountRepository
+                .findByUpiId(request.getToUpi())
+                .orElseThrow(() ->
+                        new TransferException("Receiver account not found",
+                                HttpStatus.NOT_FOUND)
+                );
 
         if (fromAcc.equals(toAcc)) {
-            log.error("Transfer failed: Attempted self-transfer for UPI: {}", request.getFromUpi());
-            throw new TransferException("Cannot transfer to self");
+            throw new TransferException(
+                    "Cannot transfer to same account",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
-        UUID firstId = fromAcc.getId().compareTo(toAcc.getId()) < 0 ? fromAcc.getId() : toAcc.getId();
-        UUID secondId = firstId.equals(fromAcc.getId()) ? toAcc.getId() : fromAcc.getId();
+        // 4. Lock ordering (deadlock prevention)
+        UUID firstId = fromAcc.getId().compareTo(toAcc.getId()) < 0
+                ? fromAcc.getId()
+                : toAcc.getId();
 
-        log.debug("Acquiring locks in order: {} -> {}", firstId, secondId);
-        Account first = accountRepository.findByIdForUpdate(firstId).orElseThrow();
-        Account second = accountRepository.findByIdForUpdate(secondId).orElseThrow();
+        UUID secondId = firstId.equals(fromAcc.getId())
+                ? toAcc.getId()
+                : fromAcc.getId();
+
+
+        Account first =
+                accountRepository.findByIdForUpdate(firstId)
+                        .orElseThrow(() ->
+                                new TransferException("Account lock failed",
+                                        HttpStatus.CONFLICT)
+                        );
+
+        Account second =
+                accountRepository.findByIdForUpdate(secondId)
+                        .orElseThrow(() ->
+                                new TransferException("Account lock failed",
+                                        HttpStatus.CONFLICT)
+                        );
 
         Account from = first.equals(fromAcc) ? first : second;
         Account to = first.equals(toAcc) ? first : second;
 
-        log.debug("Updating balances. From Account: {}, To Account: {}", from.getId(), to.getId());
-        from.debit(request.getAmount());
+        try {
+            from.debit(request.getAmount());
+        } catch (IllegalStateException ex) {
+            throw new TransferException(
+                    "Insufficient balance",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
         to.credit(request.getAmount());
 
         Transaction tx = Transaction.create(
@@ -87,23 +129,43 @@ public class TransferService {
         try {
             transactionRepository.save(tx);
         } catch (DataIntegrityViolationException ex) {
-            log.warn("Race condition: Data integrity violation for key {}. Fetching existing record.",
-                    request.getIdempotencyKey());
-            return transactionRepository.findByIdempotencyKey(request.getIdempotencyKey())
-                    .map(Transaction::getId)
-                    .orElseThrow(() -> new TransferException("Concurrent transfer conflict"));
+
+            log.warn("Idempotency conflict: {}", request.getIdempotencyKey());
+
+            return transactionRepository
+                    .findByIdempotencyKey(request.getIdempotencyKey())
+                    .orElseThrow(() ->
+                                    new TransferException(
+                            "Duplicate transaction",
+                            HttpStatus.CONFLICT
+                                    )
+                    );
         }
 
         accountRepository.saveAll(List.of(from, to));
 
-        ledgerRepository.save(LedgerEntry.create(from.getId(), tx.getId(), EntryType.DEBIT, request.getAmount()));
-        ledgerRepository.save(LedgerEntry.create(to.getId(), tx.getId(), EntryType.CREDIT, request.getAmount()));
+        ledgerRepository.save(
+                LedgerEntry.
+                        create(from.getId(),
+                                tx.getId(),
+                                EntryType.DEBIT,
+                                request.getAmount())
+        );
+
+        ledgerRepository.save(
+                LedgerEntry.
+                        create(to.getId(),
+                                tx.getId(),
+                                EntryType.CREDIT,
+                                request.getAmount()
+                        )
+        );
 
         tx.markSuccess();
         transactionRepository.save(tx);
 
-        log.info("Transfer completed successfully. Transaction ID: {}, Key: {}", tx.getId(), request.getIdempotencyKey());
-        return tx.getId();
+        log.info("Transfer success | txId={}", tx.getId());
+        return tx;
     }
 
     private void validateRequest(TransferRequest request, String senderUpi) {

@@ -15,12 +15,9 @@ import java.util.UUID;
 @Repository
 public interface AccountRepository extends JpaRepository<Account, UUID> {
 
-    /* =================================================
-       Normal Reads (NO LOCK)
-       ================================================= */
-
     Optional<Account> findByUpiId(String upiId);
 
+    Optional<Account> findByUserId(UUID userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Account a WHERE a.upiId = :upiId")
@@ -31,7 +28,6 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
             )
     })
     Optional<Account> findByUpiIdForUpdate(String upiId);
-
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Account a WHERE a.id = :id")

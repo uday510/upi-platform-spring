@@ -33,20 +33,4 @@ public class AccountController {
                 .body(response);
     }
 
-    @GetMapping("/{upiId:.+}")
-    public ResponseEntity<AccountResponse> getAccount(
-            @PathVariable String upiId,
-            @RequestHeader("X-User-Id") String authenticatedUser
-    ) {
-        log.info("User {} requesting account for {}", authenticatedUser, upiId);
-
-        if (!authenticatedUser.equalsIgnoreCase(upiId)) {
-            log.warn("Security Alert! User {} tried to access account {}", authenticatedUser, upiId);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
-        AccountResponse response = accountService.getAccountSecurely(upiId, authenticatedUser);
-        return ResponseEntity.ok(response);
-    }
-
 }

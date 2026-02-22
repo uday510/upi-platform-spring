@@ -1,6 +1,7 @@
 package com.app.upi.service;
 
 import com.app.upi.dto.AccountResponse;
+import com.app.upi.dto.BalanceResponse;
 import com.app.upi.dto.CreateAccountRequest;
 import com.app.upi.entity.Account;
 import com.app.upi.exception.AccountException;
@@ -88,4 +89,28 @@ public class AccountService {
                 .createdAt(account.getCreatedAt())
                 .build();
     }
+
+    @Transactional(readOnly = true)
+    public BalanceResponse getBalance(String authenticatedUserId) {
+
+        UUID userId;
+        try {
+            userId = UUID.fromString(authenticatedUserId);
+        } catch (IllegalArgumentException e) {
+            throw new AccountException("Invalid user id format");
+        }
+
+        Account account = accountRepository
+                .findByUserId(userId)
+                .orElseThrow(() ->
+                        new AccountException("Account not found")
+                );
+
+        return BalanceResponse.builder()
+                .accountId(account.getId())
+                .upiId(account.getUpiId())
+                .balance(account.getBalance())
+                .build();
+    }
+
 }

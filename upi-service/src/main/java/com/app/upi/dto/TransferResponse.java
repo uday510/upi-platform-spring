@@ -12,11 +12,9 @@ import java.util.UUID;
 public class TransferResponse {
 
     private UUID transactionId;
-
     private String status;
 
     private String fromUpi;
-
     private String toUpi;
 
     private BigDecimal amount;

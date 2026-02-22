@@ -40,4 +40,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             UUID accountId,
             Pageable pageable
     );
+
+    Optional<Transaction> findById(UUID id);
 }

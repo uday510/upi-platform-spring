@@ -24,11 +24,9 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class LedgerEntry {
 
-    /* =================================================
-       Identity
-       ================================================= */
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(nullable = false, updatable = false)
     private UUID id;
 
@@ -37,7 +35,6 @@ public class LedgerEntry {
 
     @Column(name = "transaction_id", nullable = false, updatable = false)
     private UUID transactionId;
-
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10, updatable = false)
@@ -76,7 +73,7 @@ public class LedgerEntry {
         }
 
         LedgerEntry entry = new LedgerEntry();
-        entry.id = UUID.randomUUID();
+
         entry.accountId = accountId;
         entry.transactionId = transactionId;
         entry.type = type;

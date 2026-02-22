@@ -1,21 +1,19 @@
 package com.app.upi.exception;
 
-import java.io.Serial;
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
 
-/**
- * Custom exception for UPI transfer business logic failures.
- */
+@Getter
 public class TransferException extends RuntimeException {
 
-    @Serial
-    private static final long serialVersionUID = 1L;
+    private final HttpStatus status;
 
-    public TransferException(String message) {
+    public TransferException(String message, HttpStatus status) {
         super(message);
+        this.status = status;
     }
 
-
-    public TransferException(String message, Throwable cause) {
-        super(message, cause);
+    public TransferException(String message) {
+        this(message, HttpStatus.BAD_REQUEST);
     }
 }

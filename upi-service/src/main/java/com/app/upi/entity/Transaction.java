@@ -14,9 +14,13 @@ import java.util.UUID;
 @Table(
         name = "transactions",
         indexes = {
-                @Index(name = "idx_tx_from_created", columnList = "from_account_id, created_at"),
-                @Index(name = "idx_tx_to_created", columnList = "to_account_id, created_at"),
-                @Index(name = "idx_tx_idem", columnList = "idempotency_key", unique = true)
+                @Index(name = "idx_tx_from_created",
+                        columnList = "from_account_id, created_at"),
+                @Index(name = "idx_tx_to_created",
+                        columnList = "to_account_id, created_at"),
+                @Index(name = "idx_tx_idem",
+                        columnList = "idempotency_key",
+                        unique = true)
         }
 )
 @Getter
@@ -24,6 +28,7 @@ import java.util.UUID;
 public class Transaction {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(nullable = false, updatable = false)
     private UUID id;
 
@@ -40,13 +45,19 @@ public class Transaction {
     @Column(nullable = false, length = 20)
     private TransactionStatus status;
 
-    @Column(name = "idempotency_key", nullable = false, unique = true, updatable = false, length = 64)
+    @Column(name = "idempotency_key",
+            nullable = false,
+            unique = true,
+            updatable = false,
+            length = 64)
     private String idempotencyKey;
 
     @Version
     private Long version;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at",
+            nullable = false,
+            updatable = false)
     private Instant createdAt;
 
 
@@ -57,31 +68,45 @@ public class Transaction {
             String idempotencyKey
     ) {
 
+        if (fromAccountId == null || toAccountId == null) {
+            throw new IllegalArgumentException("Account IDs are required");
+        }
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("Idempotency key is required");
+        }
+
         Transaction tx = new Transaction();
-        tx.id = UUID.randomUUID();
         tx.fromAccountId = fromAccountId;
         tx.toAccountId = toAccountId;
         tx.amount = amount;
         tx.status = TransactionStatus.PENDING;
-        tx.idempotencyKey = idempotencyKey;
+        tx.idempotencyKey = idempotencyKey.trim();
+
         return tx;
     }
 
-
     public void markSuccess() {
-        if (this.status != TransactionStatus.PENDING) {
-            throw new IllegalStateException("Transaction not in PENDING state");
-        }
+        ensurePending();
         this.status = TransactionStatus.SUCCESS;
     }
 
     public void markFailed() {
-        if (this.status != TransactionStatus.PENDING) {
-            throw new IllegalStateException("Transaction not in PENDING state");
-        }
+        ensurePending();
         this.status = TransactionStatus.FAILED;
     }
 
+    private void ensurePending() {
+        if (this.status != TransactionStatus.PENDING) {
+            throw new IllegalStateException(
+                    "Transaction not in PENDING state"
+            );
+        }
+    }
 
     @PrePersist
     protected void onCreate() {

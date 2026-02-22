@@ -4,12 +4,12 @@ import com.app.authservice.dto.LoginRequestDTO;
 import com.app.authservice.dto.LoginResponseDTO;
 import com.app.authservice.dto.RegisterRequestDTO;
 import com.app.authservice.entity.User;
-import com.app.authservice.exception.AuthException; // Custom Exception
+import com.app.authservice.exception.EmailAlreadyExistsException;
+import com.app.authservice.exception.InvalidCredentialsException;
 import com.app.authservice.repository.UserRepository;
 import com.app.authservice.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,11 +25,12 @@ public class AuthService {
 
     @Transactional
     public void register(RegisterRequestDTO requestDTO) {
-        log.info("Attempting to register user: {}", requestDTO.getEmail());
+
+        log.info("Register attempt for email: {}", requestDTO.getEmail());
 
         if (userRepository.existsByEmail(requestDTO.getEmail())) {
-            log.warn("Registration failed: Email {} already exists", requestDTO.getEmail());
-            throw new AuthException("Email is already registered", HttpStatus.CONFLICT);
+            log.warn("Registration failed - email already exists: {}", requestDTO.getEmail());
+            throw new EmailAlreadyExistsException("Email already registered");
         }
 
         User newUser = User.builder()
@@ -39,28 +40,32 @@ public class AuthService {
                 .build();
 
         userRepository.save(newUser);
-        log.info("User registered successfullÏy: {}", requestDTO.getEmail());
+
+        log.info("User registered successfully: {}", requestDTO.getEmail());
     }
 
     @Transactional(readOnly = true)
     public LoginResponseDTO login(LoginRequestDTO dto) {
-        log.info("Login attempt for user: {}", dto.getEmail());
+
+        log.info("Login attempt for email: {}", dto.getEmail());
 
         User user = userRepository.findByEmail(dto.getEmail())
                 .orElseThrow(() -> {
-                    log.warn("Login failed: User {} not found", dto.getEmail());
-                    return new AuthException("Invalid email or password", HttpStatus.UNAUTHORIZED);
+                    log.warn("Login failed - user not found: {}", dto.getEmail());
+                    return new InvalidCredentialsException("User not registered.");
                 });
 
         if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            log.warn("Login failed: Incorrect password for user {}", dto.getEmail());
-            throw new AuthException("Invalid email or password", HttpStatus.UNAUTHORIZED);
+            log.warn("Login failed - wrong password for: {}", dto.getEmail());
+            throw new InvalidCredentialsException("Invalid email or password");
         }
 
         String token = jwtService.generateJWT(
                 user.getId(),
                 user.getRole()
         );
+
+        log.info("Login successful for email: {}", dto.getEmail());
 
         return new LoginResponseDTO(token);
     }
