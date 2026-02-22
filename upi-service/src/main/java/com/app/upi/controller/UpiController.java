@@ -29,30 +29,29 @@ public class UpiController {
             @Valid @RequestBody TransferRequest request
     ) {
 
-        if (role != null && !role.equalsIgnoreCase("ROLE_USER")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        if (role == null || !"ROLE_USER".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .build();
         }
 
         Transaction tx = transferService.transferAndGet(request, userId);
+
         TransferResponse response =
                 TransferResponse.builder()
                         .transactionId(tx.getId())
                         .status(tx.getStatus().name())
-
                         .fromUpi(request.getFromUpi())
                         .toUpi(request.getToUpi())
-
                         .amount(tx.getAmount())
                         .createdAt(tx.getCreatedAt())
-
-                        .message(HttpStatus.OK.getReasonPhrase())
+                        .message("Transfer completed successfully")
                         .build();
-
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
+
 
     @GetMapping({"/balance", "/balance/"})
     public ResponseEntity<BalanceResponse> getBalance(

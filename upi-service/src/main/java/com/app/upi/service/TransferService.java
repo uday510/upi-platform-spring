@@ -3,18 +3,28 @@ package com.app.upi.service;
 import com.app.upi.dto.TransferRequest;
 import com.app.upi.entity.Account;
 import com.app.upi.entity.LedgerEntry;
+import com.app.upi.entity.OutboxEvent;
 import com.app.upi.entity.Transaction;
 import com.app.upi.enums.EntryType;
+import com.app.upi.event.TransferCompletedEvent;
+import com.app.upi.exception.TransferEventProducer;
 import com.app.upi.exception.TransferException;
 import com.app.upi.repository.AccountRepository;
 import com.app.upi.repository.LedgerRepository;
+import com.app.upi.repository.OutboxRepository;
 import com.app.upi.repository.TransactionRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +36,9 @@ public class TransferService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final LedgerRepository ledgerRepository;
+    private final TransferEventProducer transferEventProducer;
+    private final ObjectMapper objectMapper;
+    private final OutboxRepository outboxRepository;
 
     @Transactional
     public Transaction transferAndGet(TransferRequest request, UUID userId) {
@@ -164,6 +177,28 @@ public class TransferService {
         tx.markSuccess();
         transactionRepository.save(tx);
 
+        TransferCompletedEvent transferCompletedEvent =
+                TransferCompletedEvent.builder()
+                        .transactionId(tx.getId())
+                        .fromAccountId(tx.getFromAccountId())
+                        .toAccountId(tx.getToAccountId())
+                        .amount(request.getAmount())
+                        .userId(userId)
+                        .completedAt(Instant.now())
+                        .build();
+
+        OutboxEvent outboxEvent = OutboxEvent.builder()
+                .id(UUID.randomUUID())
+                .aggregateType("TRANSACTION")
+                .aggregateId(tx.getId())
+                .eventType("TRANSFER_COMPLETED")
+                .payload(toJson(transferCompletedEvent))
+                .status("PENDING")
+                .build();
+
+
+        outboxRepository.save(outboxEvent);
+
         log.info("Transfer success | txId={}", tx.getId());
         return tx;
     }
@@ -175,6 +210,14 @@ public class TransferService {
 
             log.error("Validation failed for transfer request from: {}", senderUpi);
             throw new TransferException("Invalid transfer request parameters");
+        }
+    }
+
+    private String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            throw new TransferException("Event serialization failed");
         }
     }
 
